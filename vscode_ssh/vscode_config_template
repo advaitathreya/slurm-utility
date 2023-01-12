@@ -1,0 +1,8 @@
+Host supercloud
+  HostName HOST
+  User USERNAME
+
+Host supercloud-compute
+  HostName NODE
+  ProxyJump supercloud
+  User USERNAME

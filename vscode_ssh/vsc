@@ -1,0 +1,37 @@
+time=$(squeue --format='%j %L %T' | grep 'vscode' | grep 'RUNNING' | awk '{print $2}')
+cpus=$(squeue --format='%j %C %T' | grep 'vscode' | grep 'RUNNING' | awk '{print $2}')
+
+get_current_session () {
+    while ! grep -q "host" REMOTE_SCRIPT_DIR/last_vscode.out; do
+        sleep .5
+    done
+
+    node=$(squeue --format='%j %N %T' | grep 'vscode' | grep 'RUNNING' | awk '{print $2}')
+    echo "node=$node"
+}
+
+if [ -n "${time}" ] 
+then 
+    echo "There is a current vscode session running on ${cpus} CPUs with ${time} left to run."
+    read -p "Would you like to open the running session? (y/n): " confirm
+    
+    case "$confirm" in 
+      y|Y ) echo ; get_current_session; exit 1;;
+      n|N ) echo ; scancel -n vscode; echo "Okay, cancelled previous session, starting a new one"; echo ;;
+      * ) echo "Invalid choice"; exit 1;;
+    esac
+fi
+
+num_cpus=12
+while getopts "c:" opt; do
+    case $opt in
+        c) num_cpus=${OPTARG} ;;
+        :) echo "Missing argument for option -$OPTARG"; exit 1;;
+       \?) echo "Unknown option -$OPTARG"; exit 1;;
+    esac
+done
+
+echo "" > REMOTE_SCRIPT_DIR/last_vscode.out
+sbatch -c $num_cpus REMOTE_SCRIPT_DIR/launch_vscode_compute.sh
+
+get_current_session

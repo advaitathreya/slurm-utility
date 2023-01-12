@@ -1,0 +1,8 @@
+cd LOCAL_SCRIPT_DIR
+out=$(ssh -t -t USERNAME@HOST "bash -i -c REMOTE_SCRIPT_DIR/vsc" | tee /dev/tty)
+node=$(grep "node" <<< "$out" | tr -d '\r')
+node=${node#*=}
+echo "Compute node: $node"
+cp vscode_config_template vscode_config
+sed -i "" "s/NODE/$node/g" vscode_config
+code --remote=ssh-remote+supercloud-compute
