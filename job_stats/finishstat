@@ -1,0 +1,18 @@
+#!/bin/bash
+
+JOB=${1%.*}
+
+printf "%14s%14s%8s%16s%16s%13s%12s%13s%13s%8s%8s%8s%12s\n" "Job ID" "State" "Exit" "Elapsed time" "Tot CPU time" "CPU eff" "Mem util" "Mem reqd" "Mem eff" "Nodes" "CPUs" "Tasks" "NodeList"
+printf -- '-%.0s' {1..155}; echo
+
+sacct -n --format JobID,State,ExitCode,Elapsed,TotalCPU,MaxRSS,REQMEM,NNodes,AllocCPUS,NTasks,Node --units=M -j $JOB.batch | \
+awk '{split($1,jid,"[+.]")
+      split($5,cpu,"."); n=split(cpu[1],splits,":"); ss=splits[n]; mm=splits[n-1]; hh=splits[n-2]; if (!mm) then (mm=0); if (!hh) then (hh=0); if (substr(cpu[2],0,1)>5) then ss++; cputime=sprintf("%02.0f:%02.0f:%02.0f", hh,mm,ss)
+      if (split(hh,dh,"-")) {dd=dh[1]; hh=dh[2];}; totcpu=(ss+mm*60+hh*3600+dd*86400)
+      n=split($4,splits,":"); ss=splits[n]; mm=splits[n-1]; hh=splits[n-2]; if (split(hh,dh,"-")) {dd=dh[1]; hh=dh[2];}; totelaps=((ss+mm*60+hh*3600+dd*86400)*$9)
+      cpueff=(totcpu/totelaps*100)
+      totmem=($7*$9/1024); memeff=($6/(totmem*1024)*100)}
+     { printf "%14s%14s%8s%16s%16s%12.2f%%%12s%12.2fG%12.2f%%%8s%8s%8s%12s\n",
+       jid[1],$2,$3,$4,cputime,cpueff,$6,totmem,memeff,$8,$9,$10,$11 }'
+
+printf -- '-%.0s' {1..155}; echo

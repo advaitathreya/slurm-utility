@@ -1,0 +1,60 @@
+#!/bin/bash
+
+get_queue() {
+    echo -ne '\033[1;96m'
+    echo -e 'SLURM QUEUE'
+    printf -- '-%.0s' {1..136}; echo
+    printf "%-12s%-20s%16s%18s%6s%8s%6s%14s%12s%12s%12s\n" "Job ID" "Job Name" "Start Time" "Partition" "CPUs" "RAM" "GPUs" "State" "Time" "Reason" "Nodes"
+    printf -- '-%.0s' {1..136}; echo
+    echo -ne '\033[0m'
+    squeue --noheader --Format="JobArrayID:64,Name:64,StartTime:64,Partition:64,tres-alloc:64,State:64,TimeUsed:64,NodeList:64,Reason:64" | \
+    awk '{ JobID=$1
+           JobName=$2
+           split($3,dt,"T"); split(dt[1],date,"-"); StartTime=date[2] "-" date[3] " " dt[2]
+           Partition=$4
+           delete td; td["gres/gpu:volta"]="-"; split($5,tres,","); for (i in tres) {split(tres[i],elem,"="); td[elem[1]]=elem[2]}
+           CPUs=td["cpu"]; RAM=td["mem"]; GPUs=td["gres/gpu:volta"]
+           State=$6
+           Time=$7
+           Nodes=$9
+           Reason=$8
+           if (State == "RUNNING")
+            Color="\033[0;32m";
+           else if (State == "PENDING" && Reason == "Priority")
+            Color="\033[0;33m";
+           else if (State == "COMPLETING")
+            Color="\033[0;95m";
+           else
+            Color="\033[0;31m";
+          }
+         { printf "%0s%-12s%-20.20s%16s%18s%6s%8s%6s%14s%12s%12s%12s%0s\n",
+           Color,JobID,JobName,StartTime,Partition,CPUs,RAM,GPUs,State,Time,Nodes,Reason,"\033[0m" }
+        '
+    echo -ne '\033[1;96m'
+    printf -- '-%.0s' {1..136}
+    echo -ne '\033[0m'
+}
+
+get_free_resources() {
+    echo -ne '\033[1;94m'
+    echo 'FREE RESOURCES'
+    printf -- '-%.0s' {1..75}; echo
+    echo -ne '\033[0;94m'
+    LLfree
+    echo -ne '\033[0m'
+}
+
+refresh=${1}
+while true
+do
+    QUEUE=$(get_queue)
+    RESRC=$(get_free_resources)
+
+    clear
+    echo -ne '\033[1;97m'
+	echo "SUPERCLOUD STATUS at $(date '+%H:%M:%S')"; echo
+    echo -ne '\033[0m'
+    echo "$QUEUE"; echo
+    echo "$RESRC"; echo
+	sleep $refresh
+done
