@@ -1,0 +1,40 @@
+time=$(squeue --format='%j %L %T' | grep 'jupyter' | grep 'RUNNING' | awk '{print $2}')
+cpus=$(squeue --format='%j %C %T' | grep 'jupyter' | grep 'RUNNING' | awk '{print $2}')
+
+get_current_session () {
+    while ! grep -q "http" REMOTE_SCRIPT_DIR/last_jupyter.out; do
+        sleep .5
+    done
+
+    node=$(squeue --format='%j %N %T' | grep 'jupyter' | grep 'RUNNING' | awk '{print $2}')
+    port=$(grep -m 1 "http" REMOTE_SCRIPT_DIR/last_jupyter.out | awk '{print $NF}' | awk -F'/' '{print $3}' | awk -F':' '{print $2}')
+    server=$(grep -m 1 "http" REMOTE_SCRIPT_DIR/last_jupyter.out | awk '{print $NF}' | awk -F'/' '{print $4"/"$5}')
+    echo "ssh -tt USERNAME@HOST -L ${port}:localhost:${port} ssh -tt ${node} -L ${port}:localhost:${port} \"tail -n +0 -f REMOTE_SCRIPT_DIR/last_jupyter.out\""
+    echo "http://localhost:${port}/lab"
+}
+
+if [ -n "${time}" ] 
+then 
+    echo "There is a current jupyter session running on ${cpus} CPUs with ${time} left to run."
+    read -p "Would you like to open the running session? (y/n): " confirm
+    
+    case "$confirm" in 
+      y|Y ) echo ; get_current_session; exit 1;;
+      n|N ) echo ; scancel -n jupyter; echo "Okay, cancelled previous session, starting a new one"; echo ;;
+      * ) echo "Invalid choice"; exit 1;;
+    esac
+fi
+
+num_cpus=12
+while getopts "c:" opt; do
+    case $opt in
+        c) num_cpus=${OPTARG} ;;
+        :) echo "Missing argument for option -$OPTARG"; exit 1;;
+       \?) echo "Unknown option -$OPTARG"; exit 1;;
+    esac
+done
+
+echo "" > REMOTE_SCRIPT_DIR/last_jupyter.out
+sbatch -c $num_cpus launch_jupyterlab.sh
+
+get_current_session

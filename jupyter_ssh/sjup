@@ -1,0 +1,9 @@
+out=$(ssh -t -t USERNAME@HOST "bash -i -c REMOTE_SCRIPT_DIR/jup" | tee /dev/tty)
+
+term=$(grep "ssh" <<< "$out" | tr -d '\r')
+webl=$(grep "http" <<< "$out" | tr -d '\r')
+
+echo "Starting remote Jupyter Lab session"
+echo
+open "$webl"
+eval "$term"
